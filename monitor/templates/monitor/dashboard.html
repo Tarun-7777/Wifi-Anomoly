@@ -1,0 +1,1236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Monitor - Live Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 25%, #16213e 50%, #0f3460 75%, #0a0a0a 100%);
+            color: #e2e8f0;
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Animated Background */
+        .bg-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.1;
+        }
+
+        .network-node {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: #00d4ff;
+            border-radius: 50%;
+            animation: pulse 3s infinite ease-in-out;
+        }
+
+        .network-line {
+            position: absolute;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #00d4ff, transparent);
+            animation: flow 4s infinite linear;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.5); }
+        }
+
+        @keyframes flow {
+            0% { opacity: 0; transform: translateX(-100px); }
+            50% { opacity: 1; }
+            100% { opacity: 0; transform: translateX(100px); }
+        }
+
+        /* Header */
+        .header {
+            background: rgba(15, 52, 96, 0.9);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(0, 212, 255, 0.2);
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(45deg, #00d4ff, #0099cc);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+        }
+
+        .logo-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #00d4ff;
+            text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 0.75rem 1.5rem;
+            border-radius: 25px;
+            border: 1px solid rgba(0, 212, 255, 0.3);
+        }
+
+        .device-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .device-icon {
+            font-size: 1.2rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #00ff88;
+            animation: pulse-green 2s infinite;
+        }
+
+        @keyframes pulse-green {
+            0%, 100% { opacity: 1; box-shadow: 0 0 5px #00ff88; }
+            50% { opacity: 0.6; box-shadow: 0 0 15px #00ff88; }
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Network Overview */
+        .network-overview {
+            background: rgba(26, 26, 46, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .network-overview::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #00d4ff, transparent);
+            animation: scan 3s infinite linear;
+        }
+
+        @keyframes scan {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .overview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .overview-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #00d4ff;
+            text-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+        }
+
+        .live-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(0, 255, 136, 0.1);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            font-size: 0.9rem;
+            color: #00ff88;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: rgba(26, 26, 46, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 15px;
+            padding: 2rem;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            border-color: #00d4ff;
+            box-shadow: 0 8px 32px rgba(0, 212, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, #00d4ff, #0099cc);
+        }
+
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .stat-icon {
+            width: 50px;
+            height: 50px;
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .stat-value {
+            font-size: 2.8rem;
+            font-weight: 700;
+            color: #00d4ff;
+            margin-bottom: 0.5rem;
+            font-family: 'JetBrains Mono', monospace;
+            text-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+        }
+
+        .stat-label {
+            color: #94a3b8;
+            font-size: 1rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .stat-change {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+
+        .stat-change.positive {
+            color: #00ff88;
+        }
+
+        .stat-change.negative {
+            color: #ff4757;
+        }
+
+        /* Chart Container */
+        .chart-section {
+            background: rgba(26, 26, 46, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .chart-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #00d4ff;
+        }
+
+        .chart-controls {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .chart-btn {
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            color: #00d4ff;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+        }
+
+        .chart-btn:hover, .chart-btn.active {
+            background: rgba(0, 212, 255, 0.2);
+            border-color: #00d4ff;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 350px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            padding: 1rem;
+        }
+
+        /* Traffic Table */
+        .traffic-section {
+            background: rgba(26, 26, 46, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .table-header {
+            background: rgba(15, 52, 96, 0.8);
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid rgba(0, 212, 255, 0.2);
+        }
+
+        .table-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #00d4ff;
+            margin-bottom: 0.5rem;
+        }
+
+        .table-subtitle {
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 1rem 1.5rem;
+            text-align: left;
+            border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+        }
+
+        th {
+            background: rgba(0, 0, 0, 0.3);
+            color: #00d4ff;
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        td {
+            color: #e2e8f0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+        }
+
+        tr:hover {
+            background: rgba(0, 212, 255, 0.05);
+        }
+
+        .status-normal {
+            background: rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-anomaly {
+            background: rgba(255, 71, 87, 0.2);
+            color: #ff4757;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .ip-address {
+            color: #00d4ff;
+            font-weight: 500;
+        }
+
+        .timestamp {
+            color: #94a3b8;
+            font-size: 0.85rem;
+        }
+
+        /* Network Topology Visualization */
+        .topology-section {
+            background: rgba(26, 26, 46, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .topology-container {
+            position: relative;
+            height: 300px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .device-node {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            background: rgba(0, 212, 255, 0.2);
+            border: 2px solid #00d4ff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            animation: pulse-node 3s infinite ease-in-out;
+        }
+
+        .device-node.laptop {
+            background: rgba(0, 255, 136, 0.2);
+            border-color: #00ff88;
+            left: 20%;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .device-node.router {
+            background: rgba(0, 212, 255, 0.2);
+            border-color: #00d4ff;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .device-node.internet {
+            background: rgba(255, 215, 0, 0.2);
+            border-color: #ffd700;
+            right: 20%;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        @keyframes pulse-node {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 10px currentColor; }
+            50% { transform: scale(1.1); box-shadow: 0 0 20px currentColor; }
+        }
+
+        .connection-line {
+            position: absolute;
+            height: 2px;
+            background: linear-gradient(90deg, #00ff88, #00d4ff, #ffd700);
+            top: 50%;
+            left: 25%;
+            right: 25%;
+            animation: data-flow 2s infinite linear;
+        }
+
+        @keyframes data-flow {
+            0% { opacity: 0.3; }
+            50% { opacity: 1; }
+            100% { opacity: 0.3; }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .chart-container {
+                height: 250px;
+            }
+
+            .overview-header {
+                flex-direction: column;
+                gap: 1rem;
+                align-items: flex-start;
+            }
+
+            .chart-header {
+                flex-direction: column;
+                gap: 1rem;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Animated Background -->
+    <div class="bg-animation" id="bgAnimation"></div>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <div class="logo-icon">🌐</div>
+                <div class="logo-text">Network Watch</div>
+            </div>
+            <div class="connection-status">
+                <div class="device-indicator">
+                    <span class="device-icon">💻</span>
+                    <span>Laptop Connected</span>
+                </div>
+                <div class="status-dot"></div>
+                <div class="device-indicator">
+                    <span>Internet Active</span>
+                    <span class="device-icon">🌐</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Network Overview -->
+        <section class="network-overview">
+            <div class="overview-header">
+                <h1 class="overview-title">Live Network Monitor</h1>
+                <div class="live-indicator">
+                    <div class="status-dot"></div>
+                    <span>Real-time • Auto-refresh: 5s</span>
+                </div>
+            </div>
+
+            <!-- Network Topology -->
+            <div class="topology-container">
+                <div class="device-node laptop">💻</div>
+                <div class="device-node router">📡</div>
+                <div class="device-node internet">🌐</div>
+                <div class="connection-line"></div>
+            </div>
+        </section>
+
+        <!-- Stats Grid -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-icon">📊</div>
+                </div>
+                <div class="stat-value" id="totalPackets">0</div>
+                <div class="stat-label">Total Packets</div>
+                <div class="stat-change positive" id="packetsChange">
+                    <span>↗</span>
+                    <span>+0 from last update</span>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-icon">⚠️</div>
+                </div>
+                <div class="stat-value" id="anomalyPercentage">0%</div>
+                <div class="stat-label">Anomaly Rate</div>
+                <div class="stat-change" id="anomalyChange">
+                    <span>→</span>
+                    <span>No change</span>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-icon">🚀</div>
+                </div>
+                <div class="stat-value" id="bandwidth">0</div>
+                <div class="stat-label">Bandwidth (Mbps)</div>
+                <div class="stat-change positive">
+                    <span>↗</span>
+                    <span>Stable connection</span>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-icon">⏱️</div>
+                </div>
+                <div class="stat-value" id="latency">0ms</div>
+                <div class="stat-label">Avg Latency</div>
+                <div class="stat-change positive">
+                    <span>↗</span>
+                    <span>Good performance</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chart Section -->
+        <section class="chart-section">
+            <div class="chart-header">
+                <h2 class="chart-title">Network Traffic Analysis</h2>
+                <div class="chart-controls">
+                    <button class="chart-btn active">1H</button>
+                    <button class="chart-btn">6H</button>
+                    <button class="chart-btn">24H</button>
+                    <button class="chart-btn">7D</button>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="trafficChart"></canvas>
+            </div>
+        </section>
+
+        <!-- Live Traffic Table -->
+        <section class="traffic-section">
+            <div class="table-header">
+                <h2 class="table-title">Live Traffic Monitor</h2>
+                <p class="table-subtitle">Real-time packet analysis • Last 10 connections</p>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Source IP</th>
+                            <th>Destination IP</th>
+                            <th>Size</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="trafficTable">
+                        <!-- Data will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        // Global variables
+        let chart;
+        let networkData = {
+            totalPackets: 0,
+            anomalyCount: 0,
+            recentPackets: [],
+            bandwidth: 0,
+            latency: 0,
+            isOnline: navigator.onLine,
+            lastOnlineCheck: Date.now()
+        };
+
+        // Connection status monitoring
+        function updateConnectionStatus() {
+            const isOnline = navigator.onLine;
+            const connectionStatus = document.querySelector('.connection-status');
+            const statusDot = document.querySelector('.status-dot');
+            const deviceIndicators = document.querySelectorAll('.device-indicator span');
+            
+            if (isOnline !== networkData.isOnline) {
+                networkData.isOnline = isOnline;
+                
+                if (isOnline) {
+                    // Connection restored
+                    connectionStatus.style.background = 'rgba(0, 0, 0, 0.3)';
+                    connectionStatus.style.borderColor = 'rgba(0, 212, 255, 0.3)';
+                    statusDot.style.background = '#00ff88';
+                    statusDot.style.animation = 'pulse-green 2s infinite';
+                    
+                    deviceIndicators[1].textContent = 'Internet Active';
+                    deviceIndicators[1].style.color = '#00ff88';
+                    
+                    // Show reconnection notification
+                    showNotification('🌐 Internet Connection Restored', 'success');
+                } else {
+                    // Connection lost
+                    connectionStatus.style.background = 'rgba(255, 71, 87, 0.2)';
+                    connectionStatus.style.borderColor = 'rgba(255, 71, 87, 0.5)';
+                    statusDot.style.background = '#ff4757';
+                    statusDot.style.animation = 'pulse-red 1s infinite';
+                    
+                    deviceIndicators[1].textContent = 'Internet Inactive';
+                    deviceIndicators[1].style.color = '#ff4757';
+                    
+                    // Show disconnection notification
+                    showNotification('⚠️ Internet Connection Lost', 'error');
+                }
+            }
+        }
+
+        // Add red pulse animation for offline status
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes pulse-red {
+                0%, 100% { opacity: 1; box-shadow: 0 0 5px #ff4757; }
+                50% { opacity: 0.6; box-shadow: 0 0 15px #ff4757; }
+            }
+            
+            .notification {
+                position: fixed;
+                top: 100px;
+                right: 20px;
+                padding: 1rem 1.5rem;
+                border-radius: 10px;
+                color: white;
+                font-weight: 500;
+                z-index: 1000;
+                animation: slideIn 0.3s ease-out;
+                max-width: 300px;
+            }
+            
+            .notification.success {
+                background: rgba(0, 255, 136, 0.9);
+                border: 1px solid #00ff88;
+            }
+            
+            .notification.error {
+                background: rgba(255, 71, 87, 0.9);
+                border: 1px solid #ff4757;
+            }
+            
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Show notification function
+        function showNotification(message, type) {
+            // Remove existing notification
+            const existing = document.querySelector('.notification');
+            if (existing) {
+                existing.remove();
+            }
+            
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            // Auto remove after 4 seconds
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease-in';
+                setTimeout(() => notification.remove(), 300);
+            }, 4000);
+        }
+
+        // Enhanced auto-refresh function that checks connection
+        function autoRefresh() {
+            const wasOffline = !networkData.isOnline;
+            updateConnectionStatus();
+            updateTopologyStatus();
+            
+            if (networkData.isOnline) {
+                // Only update data when online
+                updateStats();
+                updateTrafficTable();
+                
+                // If connection was just restored, update change indicators
+                if (wasOffline) {
+                    // Connection restored - update indicators
+                    const bandwidthChange = document.querySelector('.stat-card:nth-child(3) .stat-change');
+                    if (bandwidthChange) {
+                        bandwidthChange.className = 'stat-change positive';
+                        bandwidthChange.innerHTML = '<span>↗</span><span>Connection restored</span>';
+                    }
+                    
+                    const latencyChange = document.querySelector('.stat-card:nth-child(4) .stat-change');
+                    if (latencyChange) {
+                        latencyChange.className = 'stat-change positive';
+                        latencyChange.innerHTML = '<span>↗</span><span>Connection restored</span>';
+                    }
+                }
+                
+                // Update chart data occasionally
+                if (Math.random() < 0.3) {
+                    const newData = generateHourlyData();
+                    chart.data.labels = newData.labels;
+                    chart.data.datasets[0].data = newData.normal;
+                    chart.data.datasets[1].data = newData.anomalies;
+                    chart.data.datasets[2].data = newData.bandwidth;
+                    chart.update('none');
+                }
+            } else {
+                // When offline, show degraded stats
+                networkData.bandwidth = 0;
+                networkData.latency = 0;
+                document.getElementById('bandwidth').textContent = '0';
+                document.getElementById('latency').textContent = 'N/A';
+                
+                // Update bandwidth change indicator
+                const bandwidthChange = document.querySelector('.stat-card:nth-child(3) .stat-change');
+                if (bandwidthChange) {
+                    bandwidthChange.className = 'stat-change negative';
+                    bandwidthChange.innerHTML = '<span>↘</span><span>No connection</span>';
+                }
+                
+                // Update latency change indicator
+                const latencyChange = document.querySelector('.stat-card:nth-child(4) .stat-change');
+                if (latencyChange) {
+                    latencyChange.className = 'stat-change negative';
+                    latencyChange.innerHTML = '<span>↘</span><span>Connection lost</span>';
+                }
+            }
+        }
+
+        // Enhanced updateStats function
+        function updateStats() {
+            const prevTotal = networkData.totalPackets;
+            const prevAnomalyCount = networkData.anomalyCount;
+            
+            if (networkData.isOnline) {
+                // Simulate new packets only when online
+                const newPackets = Math.floor(Math.random() * 5) + 1;
+                networkData.totalPackets += newPackets;
+                
+                // Occasionally add anomalies (realistic rate)
+                if (Math.random() < 0.08) { // 8% chance per update cycle
+                    networkData.anomalyCount++;
+                }
+                
+                // Update bandwidth (simulate realistic values)
+                networkData.bandwidth = (Math.random() * 50 + 10).toFixed(1);
+                
+                // Update latency (simulate realistic values)
+                networkData.latency = Math.floor(Math.random() * 30) + 15;
+                
+                // Update change indicators for packets
+                const packetChange = networkData.totalPackets - prevTotal;
+                updateChangeIndicator('packetsChange', packetChange, 'packets');
+                
+                // Update anomaly change indicator
+                const anomalyChange = networkData.anomalyCount - prevAnomalyCount;
+                if (anomalyChange > 0) {
+                    updateChangeIndicator('anomalyChange', anomalyChange, 'new anomalies');
+                } else {
+                    const anomalyChangeElement = document.getElementById('anomalyChange');
+                    anomalyChangeElement.className = 'stat-change';
+                    anomalyChangeElement.innerHTML = '<span>→</span><span>Monitoring</span>';
+                }
+                
+                // Update bandwidth change indicator to show normal operation
+                const bandwidthChange = document.querySelector('.stat-card:nth-child(3) .stat-change');
+                if (bandwidthChange && !bandwidthChange.innerHTML.includes('Connection restored')) {
+                    bandwidthChange.className = 'stat-change positive';
+                    bandwidthChange.innerHTML = '<span>↗</span><span>Stable connection</span>';
+                }
+                
+                // Update latency change indicator to show normal operation
+                const latencyChange = document.querySelector('.stat-card:nth-child(4) .stat-change');
+                if (latencyChange && !latencyChange.innerHTML.includes('Connection restored')) {
+                    latencyChange.className = 'stat-change positive';
+                    latencyChange.innerHTML = '<span>↗</span><span>Good performance</span>';
+                }
+            }
+
+            // Update UI
+            document.getElementById('totalPackets').textContent = networkData.totalPackets.toLocaleString();
+            document.getElementById('bandwidth').textContent = networkData.bandwidth;
+            document.getElementById('latency').textContent = networkData.isOnline ? networkData.latency + 'ms' : 'N/A';
+            
+            // Calculate and display anomaly percentage with proper formatting
+            const anomalyPercentage = networkData.totalPackets > 0 
+                ? ((networkData.anomalyCount / networkData.totalPackets) * 100).toFixed(2)
+                : '0.00';
+            document.getElementById('anomalyPercentage').textContent = anomalyPercentage + '%';
+        }
+
+        // Add event listeners for online/offline events
+        window.addEventListener('online', updateConnectionStatus);
+        window.addEventListener('offline', updateConnectionStatus);
+
+        // Enhanced topology visualization
+        function updateTopologyStatus() {
+            const laptopNode = document.querySelector('.device-node.laptop');
+            const routerNode = document.querySelector('.device-node.router');
+            const internetNode = document.querySelector('.device-node.internet');
+            const connectionLine = document.querySelector('.connection-line');
+            
+            if (networkData.isOnline) {
+                // Online state
+                laptopNode.style.borderColor = '#00ff88';
+                laptopNode.style.background = 'rgba(0, 255, 136, 0.2)';
+                
+                routerNode.style.borderColor = '#00d4ff';
+                routerNode.style.background = 'rgba(0, 212, 255, 0.2)';
+                
+                internetNode.style.borderColor = '#ffd700';
+                internetNode.style.background = 'rgba(255, 215, 0, 0.2)';
+                
+                connectionLine.style.background = 'linear-gradient(90deg, #00ff88, #00d4ff, #ffd700)';
+                connectionLine.style.animation = 'data-flow 2s infinite linear';
+            } else {
+                // Offline state
+                laptopNode.style.borderColor = '#ff4757';
+                laptopNode.style.background = 'rgba(255, 71, 87, 0.2)';
+                
+                routerNode.style.borderColor = '#64748b';
+                routerNode.style.background = 'rgba(100, 116, 139, 0.2)';
+                
+                internetNode.style.borderColor = '#64748b';
+                internetNode.style.background = 'rgba(100, 116, 139, 0.2)';
+                
+                connectionLine.style.background = 'linear-gradient(90deg, #ff4757, #64748b, #64748b)';
+                connectionLine.style.animation = 'none';
+            }
+        }
+
+        // Generate realistic packet data
+        const sampleIPs = [
+            '192.168.1.100', '192.168.1.1', '8.8.8.8', '1.1.1.1',
+            '192.168.1.105', '74.125.224.72', '151.101.1.140',
+            '172.217.12.142', '13.107.42.14', '52.97.144.85'
+        ];
+
+        const protocols = ['HTTP', 'HTTPS', 'DNS', 'TCP', 'UDP', 'ICMP'];
+
+        // Initialize animated background
+        function initBackground() {
+            const bgAnimation = document.getElementById('bgAnimation');
+            
+        
+            for (let i = 0; i < 20; i++) {
+                const node = document.createElement('div');
+                node.className = 'network-node';
+                node.style.left = Math.random() * 100 + '%';
+                node.style.top = Math.random() * 100 + '%';
+                node.style.animationDelay = Math.random() * 3 + 's';
+                bgAnimation.appendChild(node);
+            }
+
+    
+            for (let i = 0; i < 10; i++) {
+                const line = document.createElement('div');
+                line.className = 'network-line';
+                line.style.left = Math.random() * 100 + '%';
+                line.style.top = Math.random() * 100 + '%';
+                line.style.width = Math.random() * 200 + 100 + 'px';
+                line.style.animationDelay = Math.random() * 4 + 's';
+                bgAnimation.appendChild(line);
+            }
+        }
+
+        function generatePacketData() {
+            const now = new Date();
+            const sourceIP = sampleIPs[Math.floor(Math.random() * sampleIPs.length)];
+            const destIP = sampleIPs[Math.floor(Math.random() * sampleIPs.length)];
+            const size = Math.floor(Math.random() * 1400) + 100;
+            const isAnomaly = Math.random() < 0.035; // 3.5% chance of anomaly
+
+            return {
+                timestamp: now.toLocaleTimeString(),
+                sourceIP,
+                destIP,
+                size,
+                status: isAnomaly ? 'ANOMALY' : 'NORMAL'
+            };
+        }
+
+        
+
+        function updateChangeIndicator(elementId, change, unit) {
+            const element = document.getElementById(elementId);
+            const arrow = change > 0 ? '↗' : change < 0 ? '↘' : '→';
+            const className = change > 0 ? 'positive' : change < 0 ? 'negative' : '';
+            const text = change === 0 ? 'No change' : `+${change} ${unit}`;
+            
+            element.className = `stat-change ${className}`;
+            element.innerHTML = `<span>${arrow}</span><span>${text}</span>`;
+        }
+
+    
+        function updateTrafficTable() {
+            const tbody = document.getElementById('trafficTable');
+            
+
+            const newPacket = generatePacketData();
+            networkData.recentPackets.unshift(newPacket);
+            
+            if (newPacket.status === 'ANOMALY') {
+                networkData.anomalyCount++;
+            }
+            
+
+            if (networkData.recentPackets.length > 10) {
+                networkData.recentPackets.pop();
+            }
+            
+        
+            tbody.innerHTML = '';
+            networkData.recentPackets.forEach(packet => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="timestamp">${packet.timestamp}</td>
+                    <td class="ip-address">${packet.sourceIP}</td>
+                    <td class="ip-address">${packet.destIP}</td>
+                    <td>${packet.size} bytes</td>
+                    <td>
+                        <span class="status-${packet.status.toLowerCase()}">
+                            ${packet.status}
+                        </span>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+    
+        function initChart() {
+            const ctx = document.getElementById('trafficChart').getContext('2d');
+            
+            
+            const hourlyData = generateHourlyData();
+            
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: hourlyData.labels,
+                    datasets: [
+                        {
+                            label: 'Normal Traffic',
+                            data: hourlyData.normal,
+                            borderColor: '#00ff88',
+                            backgroundColor: 'rgba(0, 255, 136, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        },
+                        {
+                            label: 'Anomalies',
+                            data: hourlyData.anomalies,
+                            borderColor: '#ff4757',
+                            backgroundColor: 'rgba(255, 71, 87, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        },
+                        {
+                            label: 'Bandwidth Usage',
+                            data: hourlyData.bandwidth,
+                            borderColor: '#00d4ff',
+                            backgroundColor: 'rgba(0, 212, 255, 0.1)',
+                            tension: 0.4,
+                            fill: false,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                color: '#e2e8f0',
+                                usePointStyle: true,
+                                padding: 20
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                color: 'rgba(0, 212, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: '#94a3b8'
+                            }
+                        },
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            grid: {
+                                color: 'rgba(0, 212, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: '#94a3b8'
+                            },
+                            title: {
+                                display: true,
+                                text: 'Packets',
+                                color: '#94a3b8'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            grid: {
+                                drawOnChartArea: false,
+                            },
+                            ticks: {
+                                color: '#94a3b8'
+                            },
+                            title: {
+                                display: true,
+                                text: 'Bandwidth (Mbps)',
+                                color: '#94a3b8'
+                            }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    }
+                }
+            });
+        }
+
+    
+        function generateHourlyData() {
+            const labels = [];
+            const normal = [];
+            const anomalies = [];
+            const bandwidth = [];
+            
+            for (let i = 23; i >= 0; i--) {
+                const hour = new Date(Date.now() - (i * 60 * 60 * 1000));
+                labels.push(hour.getHours() + ':00');
+                
+                normal.push(Math.floor(Math.random() * 1000) + 200);
+                anomalies.push(Math.floor(Math.random() * 3) + 0); // 0-2 anomalies per hour
+                bandwidth.push((Math.random() * 40 + 10).toFixed(1));
+            }
+            
+            return { labels, normal, anomalies, bandwidth };
+        }
+
+    
+
+        
+        function init() {
+            initBackground();
+            initChart();
+            
+            
+            updateConnectionStatus();
+            
+
+            for (let i = 0; i < 10; i++) {
+                updateTrafficTable();
+            }
+            updateStats();
+            
+        
+            networkData.totalPackets = Math.floor(Math.random() * 1000) + 5000;
+            networkData.anomalyCount = Math.floor(networkData.totalPackets * 0.025); // 2.5% initial anomaly rate
+            networkData.bandwidth = (Math.random() * 50 + 10).toFixed(1);
+            networkData.latency = Math.floor(Math.random() * 30) + 15;
+
+        
+            updateStats();
+            
+        
+            setInterval(autoRefresh, 5000); // Every 5 seconds
+            setInterval(updateTrafficTable, 2000); // More frequent table updates
+            
+            // Additional connection check every 10 seconds
+            setInterval(updateConnectionStatus, 10000);
+        }
+
+        // Start the dashboard
+        init();
+    </script>
+    <script id="hourly-stats-data"
+      type="application/json">
+     {{hourly_stats|safe}}
+    </script>
+    <script src="(% static 'js/dashboard.js%)"></script>
+</body>
+</html>

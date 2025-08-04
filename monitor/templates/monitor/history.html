@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Monitor - Last 30 Minutes</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 25%, #16213e 50%, #0f3460 75%, #0a0a0a 100%);
+            color: #e2e8f0;
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Animated Background */
+        .bg-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.1;
+        }
+
+        .network-node {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: #00d4ff;
+            border-radius: 50%;
+            animation: pulse 3s infinite ease-in-out;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.5); }
+        }
+
+        /* Header */
+        .header {
+            background: rgba(15, 52, 96, 0.9);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(0, 212, 255, 0.2);
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(45deg, #00d4ff, #0099cc);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+        }
+
+        .logo-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #00d4ff;
+            text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+        }
+
+        .nav-link {
+            color: #94a3b8;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+
+        .nav-link:hover {
+            background: rgba(0, 212, 255, 0.1);
+            color: #00d4ff;
+        }
+
+        /* Container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Page Header */
+        .page-header {
+            background: rgba(26, 26, 46, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+
+        .page-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #00d4ff;
+            text-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+            margin-bottom: 0.5rem;
+        }
+
+        .page-subtitle {
+            color: #94a3b8;
+            font-size: 1.1rem;
+        }
+
+        /* Stats Overview */
+        .stats-overview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: rgba(26, 26, 46, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 15px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            border-color: #00d4ff;
+            box-shadow: 0 8px 32px rgba(0, 212, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #00d4ff;
+            margin-bottom: 0.5rem;
+            font-family: 'JetBrains Mono', monospace;
+            text-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+        }
+
+        .stat-label {
+            color: #94a3b8;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .stat-card.danger .stat-value {
+            color: #ff4757;
+            text-shadow: 0 0 10px rgba(255, 71, 87, 0.3);
+        }
+
+        /* Simple List */
+        .anomaly-section {
+            background: rgba(26, 26, 46, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .section-title {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: #00d4ff;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .anomaly-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .anomaly-item {
+            background: rgba(0, 0, 0, 0.2);
+            border-left: 4px solid #ff4757;
+            border-radius: 8px;
+            padding: 1.5rem;
+            transition: all 0.2s ease;
+        }
+
+        .anomaly-item:hover {
+            background: rgba(0, 0, 0, 0.3);
+            transform: translateX(5px);
+        }
+
+        .anomaly-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .anomaly-time {
+            color: #94a3b8;
+            font-size: 0.9rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .anomaly-type {
+            color: #ff4757;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .anomaly-details {
+            color: #e2e8f0;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .anomaly-ips {
+            display: flex;
+            gap: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+        }
+
+        .ip-address {
+            color: #00d4ff;
+            font-weight: 500;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #64748b;
+        }
+
+        .empty-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .empty-title {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            color: #94a3b8;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .stats-overview {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .anomaly-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+
+            .anomaly-ips {
+                flex-direction: column;
+                gap: 0.25rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Animated Background -->
+    <div class="bg-animation" id="bgAnimation"></div>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <div class="logo-icon">🌐</div>
+                <div class="logo-text">Network Watch</div>
+            
+    </header>
+
+    <div class="container">
+        <!-- Page Header -->
+        <section class="page-header">
+            <h1 class="page-title">Last 30 Minutes</h1>
+            <p class="page-subtitle">Network activity summary</p>
+        </section>
+
+        <!-- Stats Overview -->
+        <div class="stats-overview">
+            <div class="stat-card">
+                <div class="stat-value" id="totalPackets">0</div>
+                <div class="stat-label">Total Packets</div>
+            </div>
+            <div class="stat-card danger">
+                <div class="stat-value" id="anomaliesDetected">0</div>
+                <div class="stat-label">Anomalies</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="anomalyRate">0%</div>
+                <div class="stat-label">Anomaly Rate</div>
+            </div>
+        </div>
+
+        <!-- Anomaly List -->
+        <section class="anomaly-section">
+            <h2 class="section-title">Recent Anomalies</h2>
+            <div class="anomaly-list" id="anomalyList">
+                <!-- Anomalies will be populated by JavaScript -->
+            </div>
+        </section>
+    </div>
+
+    <script>
+        // Global variables
+        let anomalyData = [];
+
+        // Simple anomaly types
+        const anomalyTypes = [
+            'Unusual Traffic Pattern',
+            'Multiple Connection Attempts',
+            'Suspicious Port Activity',
+            'High Data Transfer',
+            'Unknown Device Access'
+        ];
+
+        const sampleIPs = [
+            '192.168.1.100', '192.168.1.105', '10.0.0.15', 
+            '203.0.113.1', '198.51.100.1', '8.8.8.8'
+        ];
+
+        // Initialize animated background
+        function initBackground() {
+            const bgAnimation = document.getElementById('bgAnimation');
+            
+            for (let i = 0; i < 15; i++) {
+                const node = document.createElement('div');
+                node.className = 'network-node';
+                node.style.left = Math.random() * 100 + '%';
+                node.style.top = Math.random() * 100 + '%';
+                node.style.animationDelay = Math.random() * 3 + 's';
+                bgAnimation.appendChild(node);
+            }
+        }
+
+        // Generate realistic anomaly data (very few anomalies)
+        function generateAnomalyData() {
+            const anomalies = [];
+            const now = new Date();
+            
+            // Generate only 2-5 anomalies in the last 30 minutes
+            const anomalyCount = Math.floor(Math.random() * 4) + 2;
+            
+            for (let i = 0; i < anomalyCount; i++) {
+                const minutesAgo = Math.floor(Math.random() * 30);
+                const timestamp = new Date(now.getTime() - (minutesAgo * 60 * 1000));
+                const type = anomalyTypes[Math.floor(Math.random() * anomalyTypes.length)];
+                const sourceIP = sampleIPs[Math.floor(Math.random() * sampleIPs.length)];
+                const destIP = sampleIPs[Math.floor(Math.random() * sampleIPs.length)];
+                
+                anomalies.push({
+                    id: i + 1,
+                    timestamp: timestamp,
+                    type: type,
+                    sourceIP,
+                    destIP
+                });
+            }
+            
+            return anomalies.sort((a, b) => b.timestamp - a.timestamp);
+        }
+
+        // Update statistics
+        function updateStats() {
+            // Simulate realistic numbers
+            const totalPackets = Math.floor(Math.random() * 3000) + 12000; // 12k-15k packets
+            const anomaliesDetected = anomalyData.length;
+            const anomalyRate = totalPackets > 0 ? ((anomaliesDetected / totalPackets) * 100).toFixed(3) : 0;
+            
+            document.getElementById('totalPackets').textContent = totalPackets.toLocaleString();
+            document.getElementById('anomaliesDetected').textContent = anomaliesDetected;
+            document.getElementById('anomalyRate').textContent = anomalyRate + '%';
+        }
+
+        // Update anomaly list
+        function updateAnomalyList() {
+            const anomalyList = document.getElementById('anomalyList');
+            
+            anomalyList.innerHTML = '';
+            
+            if (anomalyData.length === 0) {
+                anomalyList.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">🛡️</div>
+                        <div class="empty-title">No Anomalies Detected</div>
+                        <div style="color: #64748b;">Your network has been secure for the last 30 minutes</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            anomalyData.forEach(anomaly => {
+                const anomalyItem = document.createElement('div');
+                anomalyItem.className = 'anomaly-item';
+                
+                const timeStr = anomaly.timestamp.toLocaleTimeString('en-US', { 
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+                
+                anomalyItem.innerHTML = `
+                    <div class="anomaly-header">
+                        <div class="anomaly-type">${anomaly.type}</div>
+                        <div class="anomaly-time">${timeStr}</div>
+                    </div>
+                    <div class="anomaly-details">Network security alert detected</div>
+                    <div class="anomaly-ips">
+                        <span>From: <span class="ip-address">${anomaly.sourceIP}</span></span>
+                        <span>To: <span class="ip-address">${anomaly.destIP}</span></span>
+                    </div>
+                `;
+                
+                anomalyList.appendChild(anomalyItem);
+            });
+        }
+
+        // Add new anomaly occasionally
+        function addNewAnomaly() {
+            if (Math.random() < 0.15) { // 15% chance every update (very rare)
+                const now = new Date();
+                const type = anomalyTypes[Math.floor(Math.random() * anomalyTypes.length)];
+                const sourceIP = sampleIPs[Math.floor(Math.random() * sampleIPs.length)];
+                const destIP = sampleIPs[Math.floor(Math.random() * sampleIPs.length)];
+                
+                const newAnomaly = {
+                    id: anomalyData.length + 1,
+                    timestamp: now,
+                    type: type,
+                    sourceIP,
+                    destIP
+                };
+                
+                anomalyData.unshift(newAnomaly);
+                
+                // Keep only last 30 minutes and max 8 anomalies
+                const thirtyMinutesAgo = new Date(now.getTime() - (30 * 60 * 1000));
+                anomalyData = anomalyData.filter(a => a.timestamp >= thirtyMinutesAgo).slice(0, 8);
+                
+                updateStats();
+                updateAnomalyList();
+            }
+        }
+
+        // Initialize the page
+        function init() {
+            initBackground();
+            
+            // Generate initial data
+            anomalyData = generateAnomalyData();
+            
+            // Update UI
+            updateStats();
+            updateAnomalyList();
+            
+            // Start auto-refresh
+            setInterval(addNewAnomaly, 10000); // Every 10 seconds
+            setInterval(updateStats, 5000); // Update stats every 5 seconds
+        }
+
+        // Start the application
+        init();
+    </script>
+</body>
+</html>
